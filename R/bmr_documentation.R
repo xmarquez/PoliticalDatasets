@@ -1,0 +1,27 @@
+#' Boix-Miller-Rosato dichotomous coding of democracy, 1800-2010, version 2.0
+#'
+#' A dataset containing the Boix-Miller-Rosato dichotomous coding of democracy,
+#' used in the paper "A Complete Data Set of Political Regimes, 1800-2007"
+#' \url{https://sites.google.com/site/mkmtwo/BMR-PolRegimes.pdf?attredirects=0}.
+#' The complete codebook is available here:
+#' \url{https://sites.google.com/site/mkmtwo/data}.
+#'
+#' @format A data frame with 17632 rows and 17 variables:
+#' \describe{
+#'   \item{country}{The country name}
+#'   \item{ccode}{COW code}
+#'   \item{abbreviation}{World Bank 3-letter code}
+#'   \item{year}{Year}
+#'   \item{democracy}{Dichotomous democracy measure}
+#'   \item{sovereign}{Dichotomous indicator of sovereignty/independence (if 0, democracy is NA)}
+#'   \item{democracy_trans}{-1 if democratic breakdown, 0 if no change, 1 if democratic transition}
+#'   \item{democracy_breakdowns}{Previous number of democratic breakdowns}
+#'   \item{democracy_duration}{Consecutive years of current regime type}
+#'   \item{democracy_omitteddata}{This is the same measure as democracy, except
+#'   it records an NA for countries occupied during an international war (e.g.,
+#'   the Netherlands 1940-44) or experiencing state collapse during a civil war
+#'   (e.g., Lebanon 1976-89). The democracy variable instead fills in these
+#'   years as continuations of the same regime type.}
+#' }
+#' @source \url{https://sites.google.com/site/mkmtwo/data}
+"bmr"

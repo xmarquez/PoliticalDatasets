@@ -1,0 +1,14 @@
+Package: PoliticalDatasets
+Type: Package
+Title: Loads cleaned up versions of political data and offers a range of utility functions to fix them up
+Version: 1.0
+Date: 2015-06-15
+Author: Xavier Marquez
+Maintainer: Xavier Marquez <marquez.x@gmail.com>
+Description: Loads political datasets on demand. Currently contains versions of GWF, Svolik, BMR, Polity, Archigos. 
+License: What license is it under?
+LazyData: true
+Depends:
+  dplyr,
+  lubridate
+Suggests: testthat
