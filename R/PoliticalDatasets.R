@@ -217,29 +217,34 @@ merge_by_date_interval <-
 #' @param leader_names
 #' @param independence
 #' @param debug
-deep_history <- function(country, polity = TRUE, coups = TRUE, economic_data = FALSE, uds_data = TRUE, interruptions = TRUE, conflict_data = TRUE, leader_names = TRUE, independence = TRUE, debug = TRUE) {
+deep_history <- function(country, polity = TRUE, coups = TRUE, economic_data = FALSE, uds_data = TRUE, interruptions = TRUE, conflict_data = TRUE, leader_names = TRUE, independence = TRUE, debug = TRUE, gwf = FALSE, rescale_range = c(-10,10), bottom_label = "Polity score", fill_label = "Type of armed conflict (UCDP/PRIO)") {
+  
   if(debug) {
     message(paste("Starting",country))
   }
-
+  
   p <- ggplot()
+  
   
   # Basic Polity score
   if(polity) {
-    data <- polity_cases %>% filter(country_name %in% country)
+    data <- polity_cases %>% filter(country_name %in% country) %>% mutate(polity = ifelse(polity > -11,scales::rescale(polity, to = rescale_range),NA)) 
     
     data2 <- data %>% ungroup() %>% mutate(polity_startdate = polity_enddate)
     data <- rbind(data,data2) %>% arrange(country_name,polity_startdate)
     rm(data2)
     
     p <- p +  
-      geom_path(data=data,aes(y=polity_startdate,x=ifelse(polity > -11,polity,NA)))  
+      geom_path(data=data,aes(y=polity_startdate,x=polity))  
   }
   
   # Coups
   if(coups) {
     if(nrow(PowellThyne %>% filter(country_name %in% country)) > 0) {
-      p <- p + geom_segment(data = PowellThyne %>% filter(country_name %in% country),aes(y=date,yend=date,x=-11,xend=11,linetype=reorder(attempt_type,-coup)),alpha=0.5, color = "red")   # Coup lines
+      data <- PowellThyne %>% filter(country_name %in% country)
+      data$x <- rescale_range[1]
+      data$xend <- rescale_range[2]
+      p <- p + geom_segment(data = data,aes(y=date,yend=date,x=x,xend=xend,linetype=reorder(attempt_type,-coup)),alpha=0.5, color = "red")   # Coup lines
     }
   }
 
@@ -247,26 +252,26 @@ deep_history <- function(country, polity = TRUE, coups = TRUE, economic_data = F
   if(economic_data) {
     if(nrow(economic.data %>% filter(country_name %in% country,!is.na(per_capita))) > 0) {
       data <- economic.data %>% filter(country_name %in% country)
-      data$value_rescaled_log <- rescale(log(data$per_capita),to=c(-10,10)) 
+      data$value_rescaled_log <- scales::rescale(data$per_capita,to= rescale_range) 
       data$date <- ymd(paste0(data$year,"-12-31"))
       
       p <- p + geom_path(data = data,aes(y=date,x=value_rescaled_log, color = primary_source, group = variable),alpha=0.5)
       
       # Dollar values at start and end of periods of leaders
       if(nrow(data %>% filter(year %in% year(archigos2014$enddate[ archigos2014$country_name %in% country ]))) > 0) {
-        p <- p + geom_text(data = data %>% filter(year %in% year(archigos2014$enddate[ archigos2014$country_name %in% country ])),aes(y=date,x=value_rescaled_log + 2,label=paste0(primary_source,": ", dollar(per_capita))),alpha=0.3, angle = -90, size = 2)
+        p <- p + geom_text(data = data %>% filter(year %in% year(archigos2014$enddate[ archigos2014$country_name %in% country ])),aes(y=date,x=value_rescaled_log + 2,label=paste0(primary_source,": ", dollar(per_capita))),alpha=0.4, angle = -90, size = 2, position = "jitter")
       }
       
-      p <- p + geom_text(data = data %>% group_by(country_name) %>% filter(year == max(year) | year == year(gw_system$startdate[ gw_system$country %in% country])),aes(y=date,x=value_rescaled_log + 2,label=paste0(primary_source,": ", dollar(per_capita))),alpha=0.3, angle = -90, size = 2)
+      p <- p + geom_text(data = data %>% group_by(country_name) %>% filter(year == max(year) | year == year(gw_system$startdate[ gw_system$country %in% country])),aes(y=date,x=value_rescaled_log + 2,label=paste0(primary_source,": ", dollar(per_capita))),alpha=0.4, angle = -90, size = 2, position = "jitter")
     }
   }
   
   # UDS score
   if(uds_data) {
     if(nrow(uds %>% filter(country_name %in% country)) > 1) {
-      uds$mean_rescaled <- rescale(uds$mean,to=c(-10,10),from=c(min(uds$pct025),max(uds$pct975)))
-      uds$pct025_rescaled <- rescale(uds$pct025,to=c(-10,10),from=c(min(uds$pct025),max(uds$pct975)))
-      uds$pct975_rescaled <- rescale(uds$pct975,to=c(-10,10),from=c(min(uds$pct025),max(uds$pct975)))
+      uds$mean_rescaled <- rescale(uds$mean, to= rescale_range, from=c(min(uds$pct025),max(uds$pct975)))
+      uds$pct025_rescaled <- rescale(uds$pct025, to= rescale_range, from=c(min(uds$pct025),max(uds$pct975)))
+      uds$pct975_rescaled <- rescale(uds$pct975, to= rescale_range, from=c(min(uds$pct025),max(uds$pct975)))
       data <- uds %>% filter(country_name %in% country)
       data$date <- ymd(paste0(data$year,"-12-31"))
       
@@ -280,26 +285,48 @@ deep_history <- function(country, polity = TRUE, coups = TRUE, economic_data = F
   # Polity interregnums and interruptions 
   if(interruptions) {
     interruptions <- polity_cases %>% filter(polity < -10,!is.na(country_name))
+    interruptions$xmin <- rescale_range[1]
+    interruptions$xmax <- rescale_range[2]
+    interruptions <- interruptions %>% filter(country_name %in% country)
     
-    if(nrow(interruptions %>% filter(country_name %in% country)) > 0) {
-      p <- p + geom_rect(data=interruptions %>% filter(country_name %in% country),aes(ymin=polity_startdate,ymax=polity_enddate,xmin=-11,xmax=11),alpha=0.2) 
+    if(nrow(interruptions) > 0) {
+      p <- p + geom_rect(data=interruptions,aes(ymin=polity_startdate,ymax=polity_enddate,xmin=xmin,xmax=xmax),alpha=0.2) 
     }
   }
   
   # Conflicts
   if(conflict_data) {
     if(nrow(ucdpConflict %>% filter(country_name %in% country)) > 0) {
-      p <- p + geom_rect(data=ucdpConflict %>% filter(country_name %in% country),aes(ymin=startdate,ymax=enddate,xmin=-11,xmax=11,fill=TypeOfConflict),alpha=0.2) + # Wars
-        geom_text(data=ucdpConflict %>% filter(country_name %in% country),aes(y=int_start(int_shift(interval(startdate,enddate),by=duration(int_length(interval(startdate,enddate))/2))),x=5,label=paste(SideA,"vs",SideB),size=IntensityLevel)) + scale_size_discrete(range=c(2,3))
+      ucdpConflict <- ucdpConflict %>% filter(country_name %in% country)
+      ucdpConflict$xmin <- rescale_range[1]
+      ucdpConflict$xmax <- rescale_range[2]
+      
+      p <- p + geom_rect(data=ucdpConflict,aes(ymin=startdate,ymax=enddate,xmin=xmin,xmax=xmax),fill = "lightgrey", alpha=0.2, color = "grey") + # Wars
+        geom_text(data=ucdpConflict,aes(y=int_start(int_shift(interval(startdate,enddate),by=duration(int_length(interval(startdate,enddate))/2))),x=(xmin+xmax)/2,label=paste("Conflict: ", SideA,"vs",SideB, ", ",TypeOfConflict),size=IntensityLevel)) + scale_size_discrete(range=c(2,3))
+    }
+  }
+  
+  # GWF regime type
+  if(gwf) {
+    if(nrow(all_gwf_periods %>% filter(country_name %in% country)) > 0) {
+      all_gwf_periods <- all_gwf_periods %>% filter(country_name %in% country)
+      all_gwf_periods$xmin <- rescale_range[1]
+      all_gwf_periods$xmax <- rescale_range[2]
+
+      p <- p + geom_rect(data=all_gwf_periods,aes(ymin=gwf_startdate,ymax=gwf_enddate,xmin=xmin,xmax=xmax,fill=gwf_full_regimetype),alpha=0.2) + # Regime type
+        geom_text(data=all_gwf_periods,aes(y=int_start(int_shift(interval(gwf_startdate,gwf_enddate),by=duration(int_length(interval(gwf_startdate,gwf_enddate))/2))),x=(xmin+xmax)/2,label=gwf_full_regimetype), size = 2.5) 
     }
   }
 
   # Leader names and exit types
   if(leader_names) {
     if(nrow(archigos2014 %>% filter(country_name %in% country)) > 0) {
-      p <- p + geom_segment(data = archigos2014 %>% filter(country_name %in% country),aes(y=enddate,yend=enddate,x=-11,xend=11),linetype = 3,alpha=0.5, color = "blue") #Exit lines
-      p <- p + geom_text(data = archigos2014 %>% filter(country_name %in% country),aes(y=enddate,x=0,label=paste0(leader," (",exitcode,")")),position=position_dodge(width=1), size = 2.5) 
+      archigos2014 <- archigos2014 %>% filter(country_name %in% country)
+      archigos2014$x <- rescale_range[1]
+      archigos2014$xend <- rescale_range[2]
       
+      p <- p + geom_segment(data = archigos2014,aes(y=enddate,yend=enddate,x=x,xend=xend),linetype = 3,alpha=0.5, color = "blue") #Exit lines
+      p <- p + geom_text(data = archigos2014,aes(y=enddate,x=(x+xend)/2,label=paste0(leader," (",exit, ", ",exitcode,")")),position=position_dodge(width=1), size = 2.5) 
     }
   }
   
@@ -307,19 +334,21 @@ deep_history <- function(country, polity = TRUE, coups = TRUE, economic_data = F
   if(independence) {
     country1 <- country
     data <- gw_system %>% filter(country %in% country1)
-    p <- p + geom_segment(data=data,aes(y=startdate,yend=startdate,x=-11,xend=11),color="green",linetype=4,size=2,alpha=0.2) +
-      geom_text(data=data,aes(x=0,y=startdate,label="Entry into state system/Independence"),alpha=0.2,color="lightblue") + 
-      geom_segment(data=data,aes(y=enddate,yend=enddate,x=-11,xend=11),color="red",linetype=4,size=2,alpha=0.2) +
-      geom_text(data=data,aes(x=0,y=enddate,label="End of independence/exit from state system"),alpha=0.2,color="lightblue")
-    }
+    data$x <- rescale_range[1]
+    data$xend <- rescale_range[2]
     
-  
+    p <- p + geom_segment(data=data,aes(y=startdate,yend=startdate,x=x,xend=xend),color="green",linetype=4,size=2,alpha=0.2) +
+      geom_text(data=data,aes(x=(x+xend)/2,y=startdate,label="Entry into state system/Independence"),alpha=0.2,color="lightblue") + 
+      geom_segment(data=data,aes(y=enddate,yend=enddate,x=x,xend=xend),color="red",linetype=4,size=2,alpha=0.2) +
+      geom_text(data=data,aes(x=(x+xend)/2,y=enddate,label="End of independence/exit from state system"),alpha=0.2,color="lightblue")
+    }
+
   # final plotting
   country1 <- country
   data <- gw_system %>% filter(country %in% country1)
-  p <- p + labs(y="Year",x="Polity score",alpha="Mode of leader exit",size="Conflict intensity",fill="Type of armed conflict (UCDP/PRIO)",color="Source for GDP per capita",linetype="Coup?") +
+  p <- p + labs(y="Year",x=bottom_label,alpha="Mode of leader exit",size="Conflict intensity",fill=fill_label,color="Source for GDP per capita",linetype="Coup?") +
     facet_wrap(~country_name) +
-    coord_cartesian(xlim=c(-11,11),ylim=c(data$startdate + years(5),ymd(20150101))) +
+    coord_cartesian(ylim=c(data$startdate + years(5),ymd(20150101))) +
     theme_bw() +
     guides(fill=guide_legend(title.position="top",ncol=2),color=guide_legend(title.position="top",ncol=2),alpha=guide_legend(title.position="top",ncol=2),size=guide_legend(title.position="top",ncol=2))+
     scale_y_datetime(breaks=c(round_date(archigos2014$enddate[ archigos2014$country_name %in% country ],"year"),round_date(polity_cases$enddate[ polity_cases$country_name %in% country ],"year")), labels=date_format("%Y")) +

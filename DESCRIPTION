@@ -10,5 +10,7 @@ License: What license is it under?
 LazyData: true
 Depends:
   dplyr,
-  lubridate
+  lubridate,
+  scales,
+  ggplot2
 Suggests: testthat
