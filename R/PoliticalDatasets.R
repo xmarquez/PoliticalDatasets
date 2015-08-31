@@ -18,7 +18,7 @@ to_gw_system <-
     if (include_extras) {
       col_names <-
         c(
-          "country_name","GWn","GWc","region","continent","startdate","GW_enddate", "microstate","lat","lon"
+          "country_name","GWn","GWc","region","continent","GW_startdate","GW_enddate", "microstate","lat","lon"
         )
     } else {
       col_names <- c("country_name","GWn")
@@ -34,8 +34,8 @@ to_gw_system <-
     dict <- PoliticalDatasets::data
     dict$GW_enddate <-
       plyr::mapvalues(dict$GW_enddate,from = NA, to = as.character(round_date(now(),unit = "day")))
-    dict <- arrange(dict,GWn,country_name,desc(startdate))
-    
+    dict <- arrange(dict,GWn,country_name,desc(GW_startdate))
+
     destination_data <- data.frame()
     
     data <- as.data.frame(data)
@@ -85,11 +85,11 @@ to_gw_system <-
           date_matches <-
             int_overlaps(
               new_interval(startdate,enddate),
-              new_interval(dict$startdate[i],dict$GW_enddate[i])
+              new_interval(dict$GW_startdate[i],dict$GW_enddate[i])
             )
         } else if (match_on %in% c("within","12-31","1-1")) {
           date_matches <- new_interval(startdate,enddate) %within%
-            new_interval(dict$startdate[i],dict$GW_enddate[i])
+            new_interval(dict$GW_startdate[i],dict$GW_enddate[i])
         } else {
           stop("No match method")
         }

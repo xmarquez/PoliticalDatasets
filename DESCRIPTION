@@ -6,7 +6,7 @@ Date: 2015-06-15
 Author: Xavier Marquez
 Maintainer: Xavier Marquez <marquez.x@gmail.com>
 Description: Loads political datasets on demand. Currently contains versions of GWF, Svolik, BMR, Polity, Archigos. 
-License: What license is it under?
+License: CC0
 LazyData: true
 Depends:
   dplyr,
